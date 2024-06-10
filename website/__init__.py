@@ -4,11 +4,13 @@ from flask_login import LoginManager
 from flask_migrate import Migrate
 from werkzeug.security import generate_password_hash
 from .models import db, User
+from flask_session import Session
 
 def create_app():
     app = Flask(__name__)
     app.config['SECRET_KEY'] = 'your_secret_key'
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///db.sqlite'
+    app.config['SESSION_TYPE'] = 'filesystem'  # Use filesystem-based sessions
     
     db.init_app(app)
     migrate = Migrate(app, db)
@@ -16,6 +18,9 @@ def create_app():
     login_manager = LoginManager()
     login_manager.login_view = 'auth.login'
     login_manager.init_app(app)
+
+
+    Session(app)
 
     @login_manager.user_loader
     def load_user(user_id):

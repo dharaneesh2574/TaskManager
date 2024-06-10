@@ -14,15 +14,13 @@ def login():
         user = User.query.filter_by(username=form.username.data).first()
         if user and check_password_hash(user.password, form.password.data):
             login_user(user, remember=True)
+            update_task_status()
             if user.role == 'admin':
-                update_task_status()
                 return redirect(url_for('main.admin_dashboard'))
             else:
-                update_task_status()
                 return redirect(url_for('main.employee_dashboard'))
         flash('Invalid username or password')
     return render_template('login.html', form=form)
-
 def update_task_status():
     current_date = datetime.now().date()
 
