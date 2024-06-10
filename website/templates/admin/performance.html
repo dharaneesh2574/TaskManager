@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}Performance{% endblock %}
+
+{% block navbar %}
+<nav class="navbar navbar-expand-lg navbar-dark">
+  <a class="navbar-brand" href="#">TaskManager</a>
+  <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+  <div class="collapse navbar-collapse" id="navbarNav">
+    <ul class="navbar-nav ml-auto">
+      <li class="nav-item active">
+        <a class="nav-link" href="{{ url_for('main.home') }}">Home</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('main.admin_dashboard') }}">Dashboard</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('main.performance') }}">Performance</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('main.employees') }}">Employees</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('auth.logout') }}">Logout</a>
+      </li>
+    </ul>
+  </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="text-white">Performance Dashboard</h1>
+    <div class="row">
+        <div class="col-md-6">
+            <canvas id="taskChart" width="400" height="400"></canvas>
+        </div>
+        <div class="col-md-6">
+            <canvas id="performanceGauge" width="400" height="400"></canvas>
+        </div>
+    </div>
+    <div class="mt-4 text-white">
+        <h3>Performance Metrics</h3>
+        <p>Total Tasks: {{ total_tasks }}</p>
+        <p>Completed Tasks: {{ completed_tasks }}</p>
+        <p>Ongoing Tasks: {{ ongoing_tasks }}</p>
+        <p>Overdue Tasks: {{ overdue_tasks }}</p>
+        <p>Late Submission Tasks: {{ late_submission_tasks }}</p>
+        <p>Success Rate: {{ success_rate }}%</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-gauge"></script>
+<script>
+var ctx1 = document.getElementById('taskChart').getContext('2d');
+var taskChart = new Chart(ctx1, {
+    type: 'pie',
+    data: {
+        labels: ['Completed', 'Ongoing', 'Overdue', 'Late Submission'],
+        datasets: [{
+            label: 'Tasks',
+            data: [{{ completed_tasks }}, {{ ongoing_tasks }}, {{ overdue_tasks }}, {{ late_submission_tasks }}],
+            backgroundColor: ['#28a745', '#ffc107', '#dc3545', '#17a2b8']
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                labels: {
+                    color: 'white'
+                }
+            }
+        }
+    }
+});
+
+var ctx2 = document.getElementById('performanceGauge').getContext('2d');
+var performanceGauge = new Chart(ctx2, {
+    type: 'gauge',
+    data: {
+        datasets: [{
+            data: [{{ success_rate }}, 100],
+            value: {{ success_rate }},
+            backgroundColor: ['#007bff', '#e0e0e0'],
+            borderWidth: 0
+        }]
+    },
+    options: {
+        responsive: true,
+        needle: {
+
+            radiusPercentage: 2,
+            widthPercentage: 3.2,
+
+            lengthPercentage: 80,
+            // The color of the needle
+            color: 'rgba(255, 0, 0, 1)'
+        },
+        valueLabel: {
+            // A function to return an `Object` as value label
+            formatter: Math.round
+        },
+        plugins: {
+            gauge: {
+                
+                valueLabel: {
+                    formatter: function(value) {
+                        return value + '%';
+                    },
+                    display: true,
+                    color: 'white',
+                    font: {
+                        size: 20,
+                        weight: 'bold'
+                    }
+                },
+                needle: {
+                    color: 'rgba(255, 0, 0, 1)'
+                },
+                borderWidth: 2,
+                borderColor: 'white'
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,64 @@
+.navbar {
+    padding: 0.5rem 1rem;
+  }
+  
+  .navbar-brand {
+    font-size: 1.2rem;
+    font-weight: bold;
+  }
+  
+  .navbar-nav {
+    margin-left: auto;
+  }
+  
+  .nav-link {
+    font-size: 1rem;
+    margin: 0 0.5rem;
+  }
+  
+  .nav-link:hover {
+    color: #007bff;
+  }
+  
+  .active>.nav-link,
+  .nav-link.active {
+    font-weight: bold;
+  }
+  
+  @media (max-width: 992px) {
+    .navbar-toggler {
+      margin-right: 1rem;
+    }
+  }
+  .navbar {
+    padding: 0.5rem 1rem;
+}
+
+.navbar-brand {
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.navbar-nav {
+    margin-left: auto;
+}
+
+.nav-link {
+    font-size: 1rem;
+    margin: 0 0.5rem;
+}
+
+.nav-link:hover {
+    color: #007bff;
+}
+
+.active>.nav-link,
+.nav-link.active {
+    font-weight: bold;
+}
+
+@media (max-width: 992px) {
+    .navbar-toggler {
+        margin-right: 1rem;
+    }
+}

@@ -1,0 +1,139 @@
+To calculate the memory used to store each element in a table and their relationships, we need to consider the types and sizes of the columns in the database schema. Here's a breakdown of each table and the estimated memory usage per record.
+
+### User Table
+
+```python
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True) # 4 bytes
+    username = db.Column(db.String(150), unique=True, nullable=False) # 150 bytes (assuming 1 byte per character for simplicity)
+    password = db.Column(db.String(150), nullable=False) # 150 bytes
+    role = db.Column(db.String(50), nullable=False) # 50 bytes
+```
+
+- **id**: 4 bytes (integer)
+- **username**: 150 bytes (string, assuming 1 byte per character)
+- **password**: 150 bytes (string, assuming 1 byte per character)
+- **role**: 50 bytes (string, assuming 1 byte per character)
+
+Total for one record in the `User` table:
+- \(4 + 150 + 150 + 50 = 354\) bytes
+
+### Task Table
+
+```python
+class Task(db.Model):
+    id = db.Column(db.Integer, primary_key=True) # 4 bytes
+    title = db.Column(db.String(150), nullable=False) # 150 bytes
+    description = db.Column(db.Text, nullable=False) # Variable size, assume average 500 bytes
+    start_date = db.Column(db.Date, nullable=False) # 3 bytes (date is stored as year, month, day)
+    end_date = db.Column(db.Date, nullable=False) # 3 bytes (date is stored as year, month, day)
+    status = db.Column(db.String(50), nullable=False, default='Ongoing') # 50 bytes
+    assigned_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False) # 4 bytes (foreign key)
+```
+
+- **id**: 4 bytes
+- **title**: 150 bytes
+- **description**: 500 bytes (assumed average)
+- **start_date**: 3 bytes
+- **end_date**: 3 bytes
+- **status**: 50 bytes
+- **assigned_by**: 4 bytes (foreign key to `User`)
+
+Total for one record in the `Task` table:
+- \(4 + 150 + 500 + 3 + 3 + 50 + 4 = 714\) bytes
+
+### TaskAssignment Table
+
+```python
+class TaskAssignment(db.Model):
+    id = db.Column(db.Integer, primary_key=True) # 4 bytes
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False) # 4 bytes (foreign key)
+    task_id = db.Column(db.Integer, db.ForeignKey('task.id'), nullable=False) # 4 bytes (foreign key)
+    completed = db.Column(db.Boolean, default=False) # 1 byte
+    completion_date = db.Column(db.Date) # 3 bytes (if not null)
+```
+
+- **id**: 4 bytes
+- **user_id**: 4 bytes (foreign key to `User`)
+- **task_id**: 4 bytes (foreign key to `Task`)
+- **completed**: 1 byte
+- **completion_date**: 3 bytes (assuming non-null for simplicity)
+
+Total for one record in the `TaskAssignment` table:
+- \(4 + 4 + 4 + 1 + 3 = 16\) bytes
+
+### ExtensionRequest Table
+
+```python
+class ExtensionRequest(db.Model):
+    id = db.Column(db.Integer, primary_key=True) # 4 bytes
+    task_id = db.Column(db.Integer, db.ForeignKey('task.id'), nullable=False) # 4 bytes (foreign key)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False) # 4 bytes (foreign key)
+    new_end_date = db.Column(db.Date, nullable=False) # 3 bytes
+    reason = db.Column(db.Text, nullable=False) # Variable size, assume average 500 bytes
+    status = db.Column(db.String(50), nullable=False, default='Pending') # 50 bytes
+```
+
+- **id**: 4 bytes
+- **task_id**: 4 bytes (foreign key to `Task`)
+- **user_id**: 4 bytes (foreign key to `User`)
+- **new_end_date**: 3 bytes
+- **reason**: 500 bytes (assumed average)
+- **status**: 50 bytes
+
+Total for one record in the `ExtensionRequest` table:
+- \(4 + 4 + 4 + 3 + 500 + 50 = 565\) bytes
+
+### Summary
+
+- **User**: 354 bytes per record
+- **Task**: 714 bytes per record
+- **TaskAssignment**: 16 bytes per record
+- **ExtensionRequest**: 565 bytes per record
+
+These estimates assume an average size for text fields and the presence of all fields in each record. Actual memory usage may vary depending on the database's internal storage mechanisms and any additional overhead.
+
+Memory Usage Per Record
+
+Based on the previous calculations:
+
+    User: 354 bytes per record
+    Task: 714 bytes per record
+    TaskAssignment: 16 bytes per record
+    ExtensionRequest: 565 bytes per record
+
+Estimating Capacity
+
+    Available Memory in Bytes: 8,192 MB * 1,024 KB * 1,024 bytes = 8,589,934,592 bytes
+
+Users: 1-2 million records
+Tasks: 500,000 - 1 million records
+TaskAssignments: 10-20 million records
+ExtensionRequests: 500,000 - 1 million records
+
+
+The given database design primarily follows **Third Normal Form (3NF)**. Here’s a detailed breakdown of how it meets the requirements of 3NF:
+
+1. **First Normal Form (1NF)**:
+   - **1NF requires that the table has a primary key and no repeating groups or arrays**. 
+   - Each table in the design (`User`, `Task`, `TaskAssignment`, `ExtensionRequest`) has a primary key.
+   - All attributes contain only atomic (indivisible) values. For example, `username` in `User` or `description` in `Task`.
+
+2. **Second Normal Form (2NF)**:
+   - **2NF requires that the table is in 1NF and that all non-key attributes are fully functional dependent on the primary key**.
+   - In `TaskAssignment`, `task_id` and `user_id` together form a composite primary key, and `completed` and `completion_date` depend on both.
+   - In `Task`, `title`, `description`, `start_date`, `end_date`, and `status` all depend on `id`.
+   - In `ExtensionRequest`, `task_id` and `user_id` together form a composite primary key, and `new_end_date`, `reason`, and `status` depend on both.
+
+3. **Third Normal Form (3NF)**:
+   - **3NF requires that the table is in 2NF and that all non-key attributes are not only fully functional dependent on the primary key but also non-transitively dependent (i.e., no transitive dependency)**.
+   - In `User`, there are no transitive dependencies.
+   - In `Task`, `assigned_by` refers to a foreign key but does not introduce any transitive dependency in the context of the table.
+   - `TaskAssignment` and `ExtensionRequest` tables don't introduce transitive dependencies as their non-key attributes depend only on their primary keys.
+
+### Normalization Analysis:
+- **1NF**: All tables have atomic values and primary keys.
+- **2NF**: All non-key attributes are fully functionally dependent on the whole primary key.
+- **3NF**: There are no transitive dependencies between non-key attributes and the primary key.
+
+This design effectively reduces redundancy and ensures that the data is logically stored, thereby adhering to the principles of 3NF.

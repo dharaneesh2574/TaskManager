@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}My Profile{% endblock %}
+
+
+{% block navbar %}
+<nav class="navbar navbar-expand-lg navbar-dark">
+  <a class="navbar-brand" href="#">TaskManager</a>
+  <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+  <div class="collapse navbar-collapse" id="navbarNav">
+    <ul class="navbar-nav ml-auto">
+      <li class="nav-item active">
+        <a class="nav-link" href="{{ url_for('main.employee_dashboard') }}">Dashboard</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('main.my_profile') }}">My Profile</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('auth.logout') }}">Logout</a>
+      </li>
+    </ul>
+  </div>
+</nav>
+{% endblock %}
+
+
+{% block content %}
+<div class="container mt-5">
+    <div class="card p-4" style="background-color: #1c1c1c; color: #ffffff;">
+        <h1>My Profile</h1>
+        <form method="POST" enctype="multipart/form-data" action="{{ url_for('main.my_profile') }}">
+            {{ form.hidden_tag() }}
+            <div class="form-group">
+                <label for="email">Email</label>
+                {{ form.email(class_="form-control") }}
+            </div>
+            <div class="form-group">
+                <label for="password">New Password</label>
+                {{ form.password(class_="form-control") }}
+            </div>
+            <div class="form-group">
+                <label for="confirm">Confirm Password</label>
+                {{ form.confirm(class_="form-control") }}
+            </div>
+            <div class="form-group">
+                <label for="profile_photo">Profile Photo</label>
+                {{ form.profile_photo(class_="form-control-file") }}
+            </div>
+            <button type="submit" class="btn btn-primary">Update Profile</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+ 
