@@ -2,6 +2,7 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_migrate import Migrate
+from datetime import timedelta
 from werkzeug.security import generate_password_hash
 from .models import db, User
 
@@ -9,6 +10,10 @@ def create_app():
     app = Flask(__name__)
     app.config['SECRET_KEY'] = 'your_secret_key'
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///db.sqlite'
+    app.config['SESSION_TYPE'] = 'filesystem'
+    app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # Session lifetime in seconds
+    app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=7)  # Duration for the remember me cookie
+
     
     db.init_app(app)
     migrate = Migrate(app, db)

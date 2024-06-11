@@ -331,11 +331,20 @@ def request_extension(task_id):
         user_id=current_user.id,
         new_end_date=new_end_date,
         reason=reason,
-        status='Pending'  
+        status='Pending'
     )
 
     db.session.add(extension_request)
     db.session.commit()
+
+    # Get the task details
+    task = Task.query.get_or_404(task_id)
+    admin_user = User.query.get(task.assigned_by)
+    
+    if admin_user:
+        email_subject = "Extension Request Submitted"
+        email_body = f"Hello {admin_user.username},\n\nThe employee {current_user.username} has requested an extension for the task '{task.title}'.\n\nNew End Date: {new_end_date_str}\nReason: {reason}\n\nBest regards,\nTask Management System"
+        send_email(admin_user.email, email_subject, email_body)
 
     flash('Extension request submitted successfully.')
     return redirect(url_for('main.employee_dashboard'))
