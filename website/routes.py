@@ -4,6 +4,7 @@ from .models import Task, TaskAssignment, User, db, ExtensionRequest
 from werkzeug.security import generate_password_hash
 from werkzeug.utils import secure_filename
 from .forms import ProfileForm
+from .email_utils import send_email
 import datetime
 import matplotlib.pyplot as plt
 import os
@@ -83,10 +84,22 @@ def create_task():
         db.session.add(new_task)
         db.session.commit()
 
-        # Handle task assignments
+        # Handle task assignments and send email to employees
         for user_id in assigned_to_ids:
             task_assignment = TaskAssignment(user_id=user_id, task_id=new_task.id)
             db.session.add(task_assignment)
+            
+            # Fetch employee email and send email notification
+            employee = User.query.get(user_id)
+            subject = "New Task Assigned"
+            body = f"Dear {employee.username},\n\nYou have been assigned a new task:\n\nTitle: {title}\nDescription: {description}\nStart Date: {start_date}\nEnd Date: {end_date}\n\nBest regards,\nYour Admin"
+            send_email(employee.email, subject, body)
+
+        # Send email notification to the admin who created the task
+        admin_email = current_user.email
+        subject = "Task Created"
+        body = f"Hello {current_user.username},\n\nYou have successfully created a new task: {title}\nDescription: {description}\nStart Date: {start_date}\nEnd Date: {end_date}\n\nBest regards,\nTask Management System"
+        send_email(admin_email, subject, body)
         
         db.session.commit()
         return redirect(url_for('main.admin_dashboard'))
@@ -146,6 +159,19 @@ def complete_task(task_id):
         task.status = 'Late Submission'
 
     db.session.commit()
+    #admin = User.query.get(task.assigned_by_user)
+    email_subject = "Task Completed"
+    email_body = f"Hello {task.assigned_by_user.username},\n\nThe task '{task.title}' assigned to {current_user.username} has been marked as completed.\n\nBest regards,\nTask Management System"
+
+    if end_date < datetime.datetime.now():
+        task.status = 'Late Submission'
+        email_subject = "Task Completed Late"
+        email_body = f"Hello {task.assigned_by_user.username},\n\nThe task '{task.title}' assigned to {current_user.username} has been completed but was submitted late.\n\nBest regards,\nTask Management System"
+
+    
+    if task.assigned_by_user:
+        send_email(task.assigned_by_user.email, email_subject, email_body)
+
     return redirect(url_for('main.employee_dashboard'))
 
 @main.route('/admin/delete_task/<int:task_id>', methods=['POST'])
