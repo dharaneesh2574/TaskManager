@@ -60,7 +60,7 @@ def logout():
 
 @auth.route('/admin/requests', methods=['GET'])
 def view_requests():
-    requests = UserRequest.query.filter_by(status='pending').all()
+    requests = UserRequest.query.all()
     return render_template('admin/user_request.html', requests=requests)
 
 @auth.route('/admin/approve/<int:request_id>', methods=['POST'])
@@ -79,4 +79,15 @@ def reject_request(request_id):
     if request.status == 'pending':
         request.status = 'rejected'
         db.session.commit()
+    return redirect(url_for('auth.view_requests'))
+
+@auth.route('/delete_request/<int:request_id>', methods=['POST'])
+@login_required
+def delete_request(request_id):
+    if current_user.role != 'admin':
+        return redirect(url_for('main.home'))
+    user_request = UserRequest.query.get_or_404(request_id)
+    db.session.delete(user_request)
+    db.session.commit()
+    flash('Request deleted successfully.')
     return redirect(url_for('auth.view_requests'))
