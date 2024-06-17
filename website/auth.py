@@ -4,6 +4,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from .models import User, Task, TaskAssignment, db, UserRequest
 from .forms import LoginForm, SignUpForm
 from datetime import datetime
+from sqlalchemy.exc import IntegrityError
 
 auth = Blueprint('auth', __name__)
 
@@ -14,11 +15,12 @@ def login():
         user = User.query.filter_by(username=form.username.data).first()
         if user and check_password_hash(user.password, form.password.data):
             login_user(user, remember=True)
+            update_task_status()
             if user.role == 'admin':
-                update_task_status()
                 return redirect(url_for('main.admin_dashboard'))
+            elif user.role == 'superuser':
+                return redirect(url_for('auth.view_requests'))
             else:
-                update_task_status()
                 return redirect(url_for('main.employee_dashboard'))
         flash('Invalid username or password')
     return render_template('login.html', form=form)
@@ -60,8 +62,14 @@ def logout():
 
 @auth.route('/admin/requests', methods=['GET'])
 def view_requests():
-    requests = UserRequest.query.all()
-    return render_template('admin/user_request.html', requests=requests)
+    if current_user.role == 'admin': 
+        requests = UserRequest.query.filter_by(role='employee').all()
+        return render_template('admin/user_request.html', requests=requests)
+    elif current_user.role == 'superuser' :
+        user_requests = UserRequest.query.all()
+        return render_template('superuser/superuser_requests.html', user_requests=user_requests)
+    else:
+        return redirect(url_for('main.home'))
 
 @auth.route('/admin/approve/<int:request_id>', methods=['POST'])
 def approve_request(request_id):
@@ -74,20 +82,73 @@ def approve_request(request_id):
     return redirect(url_for('auth.view_requests'))
 
 @auth.route('/admin/reject/<int:request_id>', methods=['POST'])
-def reject_request(request_id):
+def disapprove_request(request_id):
     request = UserRequest.query.get_or_404(request_id)
     if request.status == 'pending':
-        request.status = 'rejected'
+        request.status = 'disapproved'
         db.session.commit()
     return redirect(url_for('auth.view_requests'))
 
 @auth.route('/delete_request/<int:request_id>', methods=['POST'])
 @login_required
 def delete_request(request_id):
-    if current_user.role != 'admin':
+    if current_user.role != 'admin' or current_user.role != 'superuser' :
         return redirect(url_for('main.home'))
     user_request = UserRequest.query.get_or_404(request_id)
     db.session.delete(user_request)
     db.session.commit()
     flash('Request deleted successfully.')
     return redirect(url_for('auth.view_requests'))
+
+@auth.route('/superuser/employees', methods=['GET'])
+@login_required
+def superuser_employees():
+    if current_user.role != 'superuser':
+        return redirect(url_for('main.home'))
+
+    employees = User.query.filter(User.role != 'superuser')
+    return render_template('superuser/superuser_employees.html', employees=employees)
+
+@auth.route('/superuser/delete_employee/<int:user_id>', methods=['POST'])
+@login_required
+def delete_employee(user_id):
+    if current_user.role != 'superuser':
+        return redirect(url_for('main.home'))
+
+    user = User.query.get(user_id)
+    if user:
+        db.session.delete(user)
+        db.session.commit()
+        flash('Employee deleted successfully')
+    return redirect(url_for('auth.superuser_employees'))
+
+@auth.route('/superuser/reset_password/<int:user_id>', methods=['POST'])
+@login_required
+def reset_password(user_id):
+    if current_user.role != 'superuser':
+        return redirect(url_for('main.home'))
+
+    user = User.query.get(user_id)
+    if user:
+        new_password = 'defaultpassword'  # Or generate a random one and email it
+        user.password = generate_password_hash(new_password, method='pbkdf2:sha256')
+        db.session.commit()
+        flash('Password reset successfully')
+    return redirect(url_for('auth.superuser_employees'))
+
+@auth.route('/superuser/change_email/<int:user_id>', methods=['POST'])
+@login_required
+def change_email(user_id):
+    if current_user.role != 'superuser':
+        return redirect(url_for('main.home'))
+    new_email = request.form.get('new_email')
+    employee = User.query.get(user_id)
+    if employee:
+        employee.email = new_email
+        try:
+            db.session.commit()
+            flash('Email updated successfully.', 'success')
+        except IntegrityError:
+            db.session.rollback()  # Roll back the session to the state before the commit
+            flash('Email update failed. The email address is already in use.', 'danger')
+    return redirect(url_for('auth.superuser_employees'))

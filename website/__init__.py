@@ -29,6 +29,7 @@ def create_app():
     with app.app_context():
         db.create_all()
         create_default_admin()
+        create_superuser()
 
     from .auth import auth as auth_blueprint
     app.register_blueprint(auth_blueprint)
@@ -37,6 +38,21 @@ def create_app():
     app.register_blueprint(main_blueprint)
     
     return app
+
+def create_superuser():
+    admin_username = 'superuser'
+    admin_password = 'superuser'
+    admin_role = 'superuser'
+    admin_email = 'superuser@example.com' 
+
+    admin = User.query.filter_by(username=admin_username).first()
+    if not admin:
+        admin = User(username=admin_username, 
+                    password=generate_password_hash(admin_password, method='pbkdf2:sha256'), 
+                    role=admin_role,
+                    email=admin_email)
+        db.session.add(admin)
+        db.session.commit()
 
 def create_default_admin():
     admin_username = 'admin'

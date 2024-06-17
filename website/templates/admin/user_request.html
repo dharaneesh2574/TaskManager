@@ -50,15 +50,17 @@
                 <td>{{ request.status }}</td>
                 <td>
                     <div class="d-flex">
-                        <form method="POST" action="{{ url_for('auth.approve_request', request_id=request.id) }}">
-                            <button type="submit" class="btn btn-success btn-sm">Approve</button>
-                        </form>
-                        <form method="POST" action="{{ url_for('auth.reject_request', request_id=request.id) }}" class="ml-2">
-                            <button type="submit" class="btn btn-danger btn-sm">Reject</button>
-                        </form>
-                        <form method="POST" action="{{ url_for('auth.delete_request', request_id=request.id) }}" class="ml-2">
-                            <button type="submit" class="btn btn-warning btn-sm">Delete</button>
-                        </form>
+                      {% if request.status == 'pending' %}
+                      <form action="{{ url_for('auth.approve_request', request_id=request.id) }}" method="post" style="display: inline;">
+                          <button type="submit" class="btn btn-sm btn-success">Approve</button>
+                      </form>
+                      <form action="{{ url_for('auth.disapprove_request', request_id=request.id) }}" method="post" style="display: inline;">
+                          <button type="submit" class="btn btn-sm btn-danger">Disapprove</button>
+                      </form>
+                      {% endif %}
+                      <form action="{{ url_for('auth.delete_request', request_id=request.id) }}" method="post" style="display: inline;">
+                          <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                      </form>
                     </div>
                 </td>
             </tr>
