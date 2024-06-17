@@ -5,7 +5,7 @@ from werkzeug.security import generate_password_hash
 from werkzeug.utils import secure_filename
 from .forms import ProfileForm
 from .email_utils import send_email
-import datetime
+from datetime import datetime
 import matplotlib.pyplot as plt
 import os
 import matplotlib
@@ -16,6 +16,8 @@ main = Blueprint('main', __name__)
 @main.route('/')
 def home():
     return render_template('home.html')
+
+
 
 
 @main.route('/admin/dashboard', methods=['GET', 'POST'])
@@ -54,8 +56,9 @@ def admin_dashboard():
     tasks = tasks_query.all()
     employees = User.query.filter_by(role='employee').all()
     extension_requests = extension_requests_query.all()
+    current_date = datetime.now().date()
 
-    return render_template('admin/dashboard.html', tasks=tasks, employees=employees, extension_requests=extension_requests)
+    return render_template('admin/dashboard.html', tasks=tasks, employees=employees, extension_requests=extension_requests, current_date=current_date)
 
 @main.route('/admin/create_task', methods=['GET', 'POST'])
 @login_required
@@ -70,8 +73,8 @@ def create_task():
         end_date_str = request.form.get('end_date')
         assigned_to_ids = request.form.getlist('assigned_to')
 
-        start_date = datetime.datetime.strptime(start_date_str, '%Y-%m-%d').date()
-        end_date = datetime.datetime.strptime(end_date_str, '%Y-%m-%d').date()
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
 
         new_task = Task(
             title=title,
@@ -149,30 +152,26 @@ def complete_task(task_id):
 
     task_assignment = TaskAssignment.query.filter_by(user_id=current_user.id, task_id=task_id).first_or_404()
     task_assignment.completed = True
-    task_assignment.completion_date = datetime.datetime.now()
+    task_assignment.completion_date = datetime.now()
 
     task = Task.query.get_or_404(task_id)
-    end_date = datetime.datetime.combine(task.end_date, datetime.datetime.min.time())
-    task.status = 'Completed'
-
-    if end_date < datetime.datetime.now():
-        task.status = 'Late Submission'
-
-    db.session.commit()
-    #admin = User.query.get(task.assigned_by_user)
-    email_subject = "Task Completed"
-    email_body = f"Hello {task.assigned_by_user.username},\n\nThe task '{task.title}' assigned to {current_user.username} has been marked as completed.\n\nBest regards,\nTask Management System"
-
-    if end_date < datetime.datetime.now():
-        task.status = 'Late Submission'
-        email_subject = "Task Completed Late"
-        email_body = f"Hello {task.assigned_by_user.username},\n\nThe task '{task.title}' assigned to {current_user.username} has been completed but was submitted late.\n\nBest regards,\nTask Management System"
-
     
-    if task.assigned_by_user:
+    # Check if all task assignments are completed
+    all_completed = all(assignment.completed for assignment in task.assignments)
+
+    if all_completed:
+        task.status = 'Completed'
+        if task.end_date < datetime.now().date():
+            task.status = 'Late Submission'
+
+        # Notify admin via email
+        email_subject = "Task Completed" if task.status == 'Completed' else "Task Completed Late"
+        email_body = f"Hello {task.assigned_by_user.username},\n\nThe task '{task.title}' has been marked as {task.status.lower()} by all assigned employees.\n\nBest regards,\nTask Management System"
         send_email(task.assigned_by_user.email, email_subject, email_body)
 
+    db.session.commit()
     return redirect(url_for('main.employee_dashboard'))
+
 
 @main.route('/admin/delete_task/<int:task_id>', methods=['POST'])
 @login_required
@@ -200,10 +199,10 @@ def performance():
         return redirect(url_for('main.home'))
 
     total_tasks = Task.query.count()
-    completed_tasks = Task.query.filter_by(status='Completed').count()
+    completed_tasks = Task.query.filter(Task.assignments.any(TaskAssignment.completed == True)).filter_by(status='Completed').count()
     ongoing_tasks = Task.query.filter_by(status='Ongoing').count()
     overdue_tasks = Task.query.filter_by(status='Overdue').count()
-    late_submission_tasks = Task.query.filter(Task.assignments.any(TaskAssignment.completed == False)).filter(Task.end_date < db.func.current_date()).count()
+    late_submission_tasks = Task.query.filter_by(status='Late Submission').count()
 
     success_rate = (completed_tasks / total_tasks) * 100 if total_tasks > 0 else 0
 
@@ -214,6 +213,7 @@ def performance():
                            overdue_tasks=overdue_tasks,
                            late_submission_tasks=late_submission_tasks,
                            success_rate=success_rate)
+
 
 @main.route('/admin/employees')
 @login_required
@@ -251,7 +251,7 @@ def employee_performance(employee_id):
     total_tasks = len(task_assignments)
     completed_tasks = sum(1 for assignment in task_assignments if assignment.completed)
     ongoing_tasks = total_tasks - completed_tasks
-    overdue_tasks = sum(1 for assignment in task_assignments if assignment.task.end_date < datetime.date.today() and not assignment.completed)
+    overdue_tasks = sum(1 for assignment in task_assignments if assignment.task.end_date < datetime.now().date() and not assignment.completed)
     late_submission_tasks = sum(1 for assignment in task_assignments if assignment.completed and assignment.completion_date and assignment.completion_date > assignment.task.end_date)
     success_rate = (completed_tasks / total_tasks) * 100 if total_tasks > 0 else 0
 
@@ -321,7 +321,7 @@ def request_extension(task_id):
     reason = request.form.get('reason')
 
     try:
-        new_end_date = datetime.datetime.strptime(new_end_date_str, '%Y-%m-%d').date()
+        new_end_date = datetime.strptime(new_end_date_str, '%Y-%m-%d').date()
     except ValueError:
         flash('Invalid date format. Please use YYYY-MM-DD.')
         return redirect(url_for('dashboard'))
@@ -409,13 +409,6 @@ def my_profile():
         current_user.email = form.email.data
         if form.password.data:
             current_user.password = generate_password_hash(form.password.data)
-        
-        if form.profile_photo.data:
-            filename = secure_filename(form.profile_photo.data.filename)
-            filepath = os.path.join('static/profile_photos', filename)
-            form.profile_photo.data.save(filepath)
-            current_user.profile_photo = filepath
-
         db.session.commit()
         flash('Your profile has been updated!', 'success')
         return redirect(url_for('main.my_profile'))

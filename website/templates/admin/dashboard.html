@@ -195,11 +195,12 @@
 
 <!-- View Task Modals -->
 {% for task in tasks %}
-<div class="modal fade" id="viewTaskModal{{ task.id }}" tabindex="-1" role="dialog" aria-labelledby="viewTaskModalLabel{{ task.id }}" aria-hidden="true">
+<!-- Task Details Modal -->
+<div class="modal fade" id="viewTaskModal{{ task.id }}" tabindex="-1" role="dialog" aria-labelledby="taskDetailsModalLabel{{ task.id }}" aria-hidden="true">
     <div class="modal-dialog" role="document">
-        <div class="modal-content">
+        <div class="modal-content" style="background-color: #1c1c1c; color: #ffffff;">
             <div class="modal-header">
-                <h5 class="modal-title" id="viewTaskModalLabel{{ task.id }}">Task Details</h5>
+                <h5 class="modal-title" id="taskDetailsModalLabel{{ task.id }}">{{ task.title }}</h5>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
@@ -208,23 +209,58 @@
                 <p><strong>Title:</strong> {{ task.title }}</p>
                 <p><strong>Description:</strong> {{ task.description }}</p>
                 <p><strong>Start Date:</strong> {{ task.start_date }}</p>
+
                 <p><strong>End Date:</strong> {{ task.end_date }}</p>
+
                 <p><strong>Status:</strong> {{ task.status }}</p>
+
                 <p><strong>Assigned By:</strong> {{ task.assigned_by_user.username }}</p>
+
                 <p><strong>Assigned To:</strong> 
-                    {% for assignment in task.assignments %}
-                        {{ assignment.assigned_to.username }}{% if not loop.last %}, {% endif %}
+
+                   {% for assignment in task.assignments %}
+
+                    <li>
+
+                        {{ assignment.assigned_to.username }} - 
+
+                        {% if assignment.completed %}
+
+                            Completed
+
+                            {% if assignment.completion_date and assignment.completion_date > task.end_date %}
+
+                                (Late Submission)
+
+                            {% endif %}
+
+                        {% else %}
+
+                            {% if task.end_date < current_date %}
+
+                                Overdue
+
+                            {% else %}
+
+                                Ongoing
+
+                            {% endif %}
+
+                        {% endif %}
+
+                    </li>
+
                     {% endfor %}
-                </p>
+
+                </ul>
+
             </div>
             <div class="modal-footer">
-                <a href="{{ url_for('main.edit_task', task_id=task.id) }}" class="btn btn-sm btn-warning">Edit</a>
-                <form action="{{ url_for('main.delete_task', task_id=task.id) }}" method="post" style="display: inline;">
-                    <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                </form>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
 </div>
+
 {% endfor %}
 {% endblock %}

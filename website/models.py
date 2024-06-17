@@ -9,7 +9,6 @@ class User(UserMixin, db.Model):
     password = db.Column(db.String(150), nullable=False)
     role = db.Column(db.String(50), nullable=False)
     email = db.Column(db.String(150), unique=True, nullable=False)
-    profile_photo = db.Column(db.String(150))
     
     assigned_tasks = db.relationship('TaskAssignment', backref='assigned_to', lazy=True)
     tasks_assigned = db.relationship('Task', backref='assigned_by_user', lazy=True)

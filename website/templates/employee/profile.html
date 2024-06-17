@@ -36,21 +36,31 @@
                 <label for="email">Email</label>
                 {{ form.email(class_="form-control") }}
             </div>
-            <div class="form-group">
-                <label for="password">New Password</label>
-                {{ form.password(class_="form-control") }}
-            </div>
-            <div class="form-group">
-                <label for="confirm">Confirm Password</label>
-                {{ form.confirm(class_="form-control") }}
-            </div>
-            <div class="form-group">
-                <label for="profile_photo">Profile Photo</label>
-                {{ form.profile_photo(class_="form-control-file") }}
+            <button type="button" class="btn btn-secondary mb-3" id="change-password-button">Change Password</button>
+            <div id="password-fields" style="display: none;">
+                <div class="form-group">
+                    <label for="password">New Password</label>
+                    {{ form.password(class_="form-control") }}
+                </div>
+                <div class="form-group">
+                    <label for="confirm">Confirm Password</label>
+                    {{ form.confirm(class_="form-control") }}
+                </div>
             </div>
             <button type="submit" class="btn btn-primary">Update Profile</button>
         </form>
     </div>
 </div>
+
+<script>
+    document.getElementById('change-password-button').addEventListener('click', function() {
+        var passwordFields = document.getElementById('password-fields');
+        if (passwordFields.style.display === 'none') {
+            passwordFields.style.display = 'block';
+        } else {
+            passwordFields.style.display = 'none';
+        }
+    });
+</script>
 {% endblock %}
  
