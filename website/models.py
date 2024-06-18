@@ -10,9 +10,9 @@ class User(UserMixin, db.Model):
     role = db.Column(db.String(50), nullable=False)
     email = db.Column(db.String(150), unique=True, nullable=False)
     
-    assigned_tasks = db.relationship('TaskAssignment', backref='assigned_to', lazy=True)
+    assigned_tasks = db.relationship('TaskAssignment', backref='assigned_to', lazy=True, cascade="all, delete-orphan")
     tasks_assigned = db.relationship('Task', backref='assigned_by_user', lazy=True)
-    extension_requests = db.relationship('ExtensionRequest', back_populates='requesting_user', lazy=True, overlaps="user")
+    extension_requests = db.relationship('ExtensionRequest', back_populates='requesting_user', lazy=True, overlaps="user", cascade="all, delete-orphan")
 
 class Task(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -21,15 +21,15 @@ class Task(db.Model):
     start_date = db.Column(db.Date, nullable=False)
     end_date = db.Column(db.Date, nullable=False)
     status = db.Column(db.String(50), nullable=False, default='Ongoing')
-    assigned_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    assigned_by = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     
     assignments = db.relationship('TaskAssignment', back_populates='task', cascade="all, delete-orphan")
     extension_requests = db.relationship('ExtensionRequest', back_populates='task', cascade="all, delete-orphan")
 
 class TaskAssignment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    task_id = db.Column(db.Integer, db.ForeignKey('task.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    task_id = db.Column(db.Integer, db.ForeignKey('task.id', ondelete='CASCADE'), nullable=False)
     completed = db.Column(db.Boolean, default=False)
     completion_date = db.Column(db.Date)
 
@@ -37,8 +37,8 @@ class TaskAssignment(db.Model):
 
 class ExtensionRequest(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    task_id = db.Column(db.Integer, db.ForeignKey('task.id'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    task_id = db.Column(db.Integer, db.ForeignKey('task.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     new_end_date = db.Column(db.Date, nullable=False)
     reason = db.Column(db.Text, nullable=False)
     status = db.Column(db.String(50), nullable=False, default='Pending')

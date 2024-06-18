@@ -4,6 +4,7 @@ from flask_login import LoginManager
 from flask_migrate import Migrate
 from datetime import timedelta
 from werkzeug.security import generate_password_hash
+from sqlalchemy.pool import QueuePool
 from .models import db, User
 
 def create_app():
@@ -13,10 +14,18 @@ def create_app():
     app.config['SESSION_TYPE'] = 'filesystem'
     app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # Session lifetime in seconds
     app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=7)  # Duration for the remember me cookie
-
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'poolclass': QueuePool,
+    'pool_size': 5,
+    'max_overflow': 10,
+    'pool_timeout': 30,
+    'pool_recycle': 1800,
+}
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
     db.init_app(app)
     migrate = Migrate(app, db)
+
 
     login_manager = LoginManager()
     login_manager.login_view = 'auth.login'

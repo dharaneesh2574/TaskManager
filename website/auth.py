@@ -92,8 +92,6 @@ def disapprove_request(request_id):
 @auth.route('/delete_request/<int:request_id>', methods=['POST'])
 @login_required
 def delete_request(request_id):
-    if current_user.role != 'admin' or current_user.role != 'superuser' :
-        return redirect(url_for('main.home'))
     user_request = UserRequest.query.get_or_404(request_id)
     db.session.delete(user_request)
     db.session.commit()
@@ -129,11 +127,24 @@ def reset_password(user_id):
         return redirect(url_for('main.home'))
 
     user = User.query.get(user_id)
-    if user:
-        new_password = 'defaultpassword'  # Or generate a random one and email it
-        user.password = generate_password_hash(new_password, method='pbkdf2:sha256')
-        db.session.commit()
-        flash('Password reset successfully')
+    if not user:
+        flash('User not found')
+        return redirect(url_for('auth.superuser_employees'))
+
+    new_password = request.form.get('new_password')
+    repeat_password = request.form.get('repeat_password')
+
+    if not new_password or not repeat_password:
+        flash('Please provide both password fields')
+        return redirect(url_for('auth.superuser_employees'))
+
+    if new_password != repeat_password:
+        flash('Passwords do not match')
+        return redirect(url_for('auth.superuser_employees'))
+
+    user.password = generate_password_hash(new_password, method='pbkdf2:sha256')
+    db.session.commit()
+    flash('Password reset successfully')
     return redirect(url_for('auth.superuser_employees'))
 
 @auth.route('/superuser/change_email/<int:user_id>', methods=['POST'])
