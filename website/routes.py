@@ -4,8 +4,9 @@ from .models import Task, TaskAssignment, User, db, ExtensionRequest
 from werkzeug.security import generate_password_hash
 from werkzeug.utils import secure_filename
 from .forms import ProfileForm
+from .auth import update_task_status
 from .email_utils import send_email
-from datetime import datetime
+from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 import os
 import matplotlib
@@ -41,24 +42,27 @@ def admin_dashboard():
         if sort_order == 'asc':
             if sort_by == 'start_date':
                 tasks_query = tasks_query.order_by(Task.start_date.asc())
-                extension_requests_query = extension_requests_query.order_by(ExtensionRequest.new_end_date.asc())
             elif sort_by == 'end_date':
                 tasks_query = tasks_query.order_by(Task.end_date.asc())
-                extension_requests_query = extension_requests_query.order_by(ExtensionRequest.new_end_date.asc())
         else:
             if sort_by == 'start_date':
                 tasks_query = tasks_query.order_by(Task.start_date.desc())
-                extension_requests_query = extension_requests_query.order_by(ExtensionRequest.new_end_date.desc())
             elif sort_by == 'end_date':
                 tasks_query = tasks_query.order_by(Task.end_date.desc())
-                extension_requests_query = extension_requests_query.order_by(ExtensionRequest.new_end_date.desc())
 
     tasks = tasks_query.all()
     employees = User.query.filter_by(role='employee').all()
-    extension_requests = extension_requests_query.all()
+    #extension_requests = extension_requests_query.all()
     current_date = datetime.now().date()
 
-    return render_template('admin/dashboard.html', tasks=tasks, employees=employees, extension_requests=extension_requests, current_date=current_date)
+    categories = [
+        "Recruitment", "IT Support", "HR and Admin", "Urgent Report - Saravanan Sir",
+        "Operations", "HR and Admin", "IT and Infrastructure", "HR Support",
+        "Project Management", "HR Activities"
+    ]
+    update_task_status()
+    return render_template('admin/dashboard.html', tasks=tasks, employees=employees, current_date=current_date, categories=categories)
+
 
 @main.route('/admin/create_task', methods=['GET', 'POST'])
 @login_required
@@ -69,6 +73,7 @@ def create_task():
     if request.method == 'POST':
         title = request.form.get('title')
         description = request.form.get('description')
+        category = request.form.get('category')  # New field
         start_date_str = request.form.get('start_date')
         end_date_str = request.form.get('end_date')
         assigned_to_ids = request.form.getlist('assigned_to')
@@ -79,6 +84,7 @@ def create_task():
         new_task = Task(
             title=title,
             description=description,
+            category=category,  # New field
             start_date=start_date,
             end_date=end_date,
             status='Ongoing',
@@ -95,21 +101,20 @@ def create_task():
             # Fetch employee email and send email notification
             employee = User.query.get(user_id)
             subject = "New Task Assigned"
-            body = f"Dear {employee.username},\n\nYou have been assigned a new task:\n\nTitle: {title}\nDescription: {description}\nStart Date: {start_date}\nEnd Date: {end_date}\n\nBest regards,\nYour Admin"
+            body = f"Dear {employee.username},\n\nYou have been assigned a new task:\n\nTitle: {title}\nDescription: {description}\nCategory: {category}\nStart Date: {start_date}\nEnd Date: {end_date}\n\nBest regards,\nYour Admin"
             send_email(employee.email, subject, body)
 
         # Send email notification to the admin who created the task
         admin_email = current_user.email
         subject = "Task Created"
-        body = f"Hello {current_user.username},\n\nYou have successfully created a new task: {title}\nDescription: {description}\nStart Date: {start_date}\nEnd Date: {end_date}\n\nBest regards,\nTask Management System"
+        body = f"Hello {current_user.username},\n\nYou have successfully created a new task: {title}\nDescription: {description}\nCategory: {category}\nStart Date: {start_date}\nEnd Date: {end_date}\n\nBest regards,\nTask Management System"
         send_email(admin_email, subject, body)
         
         db.session.commit()
         return redirect(url_for('main.admin_dashboard'))
 
-    employees = User.query.filter_by(role='employee').all()
-    return render_template('admin/create_task.html', employees=employees)
-
+    employees = User.query.filter_by(role='employee').all()    
+    return render_template('admin/dashboard.html.html', employees=employees)
 
 @main.route('/admin/edit_task/<int:task_id>', methods=['GET', 'POST'])
 @login_required
@@ -251,7 +256,7 @@ def employee_performance(employee_id):
     total_tasks = len(task_assignments)
     completed_tasks = sum(1 for assignment in task_assignments if assignment.completed)
     ongoing_tasks = total_tasks - completed_tasks
-    overdue_tasks = sum(1 for assignment in task_assignments if assignment.task.end_date < datetime.now().date() and not assignment.completed)
+    overdue_tasks = sum(1 for assignment in task_assignments if assignment.task.end_date< datetime.now().date() and not assignment.completed)
     late_submission_tasks = sum(1 for assignment in task_assignments if assignment.completed and assignment.completion_date and assignment.completion_date > assignment.task.end_date)
     success_rate = (completed_tasks / total_tasks) * 100 if total_tasks > 0 else 0
 
@@ -317,19 +322,21 @@ def generate_pie_chart(total_tasks, completed_tasks, ongoing_tasks, overdue_task
 @main.route('/request_extension/<int:task_id>', methods=['POST'])
 @login_required
 def request_extension(task_id):
-    new_end_date_str = request.form.get('new_end_date')
+    days = request.form.get('days_requested')
     reason = request.form.get('reason')
 
     try:
-        new_end_date = datetime.strptime(new_end_date_str, '%Y-%m-%d').date()
+        days = int(days)
     except ValueError:
-        flash('Invalid date format. Please use YYYY-MM-DD.')
+        flash('Invalid number of days. Please enter a valid number.')
         return redirect(url_for('dashboard'))
+
+    task = Task.query.get_or_404(task_id)
 
     extension_request = ExtensionRequest(
         task_id=task_id,
         user_id=current_user.id,
-        new_end_date=new_end_date,
+        no_of_days= days,
         reason=reason,
         status='Pending'
     )
@@ -338,12 +345,11 @@ def request_extension(task_id):
     db.session.commit()
 
     # Get the task details
-    task = Task.query.get_or_404(task_id)
     admin_user = User.query.get(task.assigned_by)
     
     if admin_user:
         email_subject = "Extension Request Submitted"
-        email_body = f"Hello {admin_user.username},\n\nThe employee {current_user.username} has requested an extension for the task '{task.title}'.\n\nNew End Date: {new_end_date_str}\nReason: {reason}\n\nBest regards,\nTask Management System"
+        email_body = f"Hello {admin_user.username},\n\nThe employee {current_user.username} has requested an extension for the task '{task.title}'.\n\nNo. of Days : {days}\nReason: {reason}\n\nBest regards,\nTask Management System"
         send_email(admin_user.email, email_subject, email_body)
 
     flash('Extension request submitted successfully.')
@@ -357,9 +363,9 @@ def approve_extension(request_id):
     extension_request = ExtensionRequest.query.get_or_404(request_id)
     extension_request.status = 'Approved'
     task = Task.query.get(extension_request.task_id)
-    task.end_date = extension_request.new_end_date
     db.session.commit()
-    return redirect(url_for('main.admin_dashboard'))
+    return redirect(url_for('auth.view_request'))
+
 
 @main.route('/disapprove_extension/<int:request_id>', methods=['POST'])
 @login_required
@@ -369,7 +375,7 @@ def disapprove_extension(request_id):
     extension_request = ExtensionRequest.query.get_or_404(request_id)
     extension_request.status = 'Disapproved'
     db.session.commit()
-    return redirect(url_for('main.admin_dashboard'))
+    return redirect(url_for('auth.view_request'))
 
 @main.route('/admin/delete_extension_request/<int:request_id>', methods=['POST'])
 @login_required
@@ -382,7 +388,7 @@ def delete_extension_request(request_id):
     db.session.commit()
     
     flash('Extension request deleted successfully.')
-    return redirect(url_for('main.admin_dashboard'))
+    return redirect(url_for('auth.view_request'))
 
 @main.route('/delete_employee/<int:employee_id>', methods=['POST'])
 @login_required

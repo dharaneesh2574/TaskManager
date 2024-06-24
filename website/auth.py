@@ -1,10 +1,12 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from .models import User, Task, TaskAssignment, db, UserRequest
+from .models import User, Task, TaskAssignment, db, UserRequest, ExtensionRequest
 from .forms import LoginForm, SignUpForm
-from datetime import datetime
-from sqlalchemy.exc import IntegrityError
+from datetime import datetime, timedelta
+from sqlalchemy.orm import joinedload
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy import func
 
 auth = Blueprint('auth', __name__)
 
@@ -25,23 +27,45 @@ def login():
         flash('Invalid username or password')
     return render_template('login.html', form=form)
 
+
 def update_task_status():
     current_date = datetime.now().date()
 
-    
-    overdue_tasks = Task.query.filter(Task.end_date < current_date, Task.status != 'Completed').all()
-    for task in overdue_tasks:
-        task.status = 'Overdue'
-        db.session.commit()
+    try:
+        # Load all tasks with related extensions and assignments in a single query
+        tasks = Task.query.options(
+            joinedload(Task.extension_requests),
+            joinedload(Task.assignments)
+        ).all()
 
-    late_submission_tasks = Task.query.filter(Task.status == 'Overdue').all()
-    for task in late_submission_tasks:
-        task_assignments = TaskAssignment.query.filter_by(task_id=task.id, completed=True).all()
-        for assignment in task_assignments:
-            if assignment.completion_date > task.end_date:
-                task.status = 'Late Submission'
-                db.session.commit()
-                break
+        for task in tasks:
+            # Calculate the effective end date considering extra time
+            approved_extensions = [ext.no_of_days for ext in task.extension_requests if ext.status == 'Approved']
+            total_extra_days = sum(approved_extensions)
+            effective_end_date = task.end_date + timedelta(days=total_extra_days)
+
+            print(f"Task ID: {task.id}, End Date: {task.end_date}, Extra Days: {total_extra_days}, Effective End Date: {effective_end_date}, Current Date: {current_date}")
+
+            if effective_end_date < current_date and task.status != 'Completed':
+                task.status = 'Overdue'
+            elif effective_end_date >= current_date and task.status == 'Overdue':
+                task.status = 'Ongoing'
+
+        # Update late submission tasks
+        overdue_tasks = Task.query.filter(Task.status == 'Overdue').all()
+        for task in overdue_tasks:
+            effective_end_date = task.end_date + timedelta(days=sum(ext.no_of_days for ext in task.extension_requests if ext.status == 'Approved'))
+            for assignment in task.assignments:
+                if assignment.completed and assignment.completion_date and assignment.completion_date > effective_end_date:
+                    task.status = 'Late Submission'
+                    break
+
+        # Commit all changes at once
+        db.session.commit()
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        flash('An error occurred while updating task statuses. Please try again.')
+        print(f"Error: {e}")
 
 @auth.route('/Sign_up', methods=['GET', 'POST'])
 def signup():
@@ -63,8 +87,9 @@ def logout():
 @auth.route('/admin/requests', methods=['GET'])
 def view_requests():
     if current_user.role == 'admin': 
+        extension_requests = ExtensionRequest.query.all()
         requests = UserRequest.query.filter_by(role='employee').all()
-        return render_template('admin/user_request.html', requests=requests)
+        return render_template('admin/user_request.html', extension_requests=extension_requests, requests=requests)
     elif current_user.role == 'superuser' :
         user_requests = UserRequest.query.all()
         return render_template('superuser/superuser_requests.html', user_requests=user_requests)

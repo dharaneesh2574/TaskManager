@@ -26,43 +26,45 @@
 
 {% block content %}
 <div class="container">
-  <h1>Employee Dashboard</h1>
-  <h2>Your Tasks</h2>
-  <table class="table table-dark">
-    <thead>
-      <tr>
-        <th>Title</th>
-        <th>Description</th>
-        <th>Start Date</th>
-        <th>End Date</th>
-        <th>Status</th>
-        <th>Assigned By</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for task_assignment in tasks %}
-      <tr>
-        <td>{{ task_assignment.task.title }}</td>
-        <td>{{ task_assignment.task.description }}</td>
-        <td>{{ task_assignment.task.start_date }}</td>
-        <td>{{ task_assignment.task.end_date }}</td>
-        <td>{{ task_assignment.task.status }}</td>
-        <td>{{ task_assignment.task.assigned_by_user.username }}</td>
-        <td>
-          {% if not task_assignment.completed %}
-          <form method="POST" action="{{ url_for('main.complete_task', task_id=task_assignment.task.id) }}">
-            <button type="submit" class="btn btn-success">Complete</button>
-          </form>
-          <button class="btn btn-warning" data-toggle="modal" data-target="#requestExtensionModal-{{ task_assignment.task.id }}">Request Extension</button>
-          {% else %}
-          Completed
-          {% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="card p-4" style="background-color: #1c1c1c; color: #ffffff;">
+    <h1>Employee Dashboard</h1>
+    <h2>Your Tasks</h2>
+    <table class="table table-dark">
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Description</th>
+          <th>Start Date</th>
+          <th>End Date</th>
+          <th>Status</th>
+          <th>Assigned By</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for task_assignment in tasks %}
+        <tr>
+          <td>{{ task_assignment.task.title }}</td>
+          <td>{{ task_assignment.task.description }}</td>
+          <td>{{ task_assignment.task.start_date }}</td>
+          <td>{{ task_assignment.task.end_date }}</td>
+          <td>{{ task_assignment.task.status }}</td>
+          <td>{{ task_assignment.task.assigned_by_user.username }}</td>
+          <td>
+            {% if not task_assignment.completed %}
+            <form method="POST" action="{{ url_for('main.complete_task', task_id=task_assignment.task.id) }}">
+              <button type="submit" class="btn btn-success">Complete</button>
+            </form>
+            <button class="btn btn-warning" data-toggle="modal" data-target="#requestExtensionModal-{{ task_assignment.task.id }}">Request Extension</button>
+            {% else %}
+            Completed
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
 
 <!-- Extension Request Modals -->
@@ -79,8 +81,16 @@
       <div class="modal-body">
         <form action="{{ url_for('main.request_extension', task_id=task_assignment.task.id) }}" method="post">
           <div class="form-group">
-            <label for="new_end_date">New End Date</label>
-            <input type="date" class="form-control" id="new_end_date" name="new_end_date" required>
+            <label for="days_requested">Select Days (1 to 5)</label>
+            <select class="form-control" id="days_requested" name="days_requested" required>
+              <option value="">Select...</option>
+              <option value="1">1 day</option>
+              <option value="2">2 days</option>
+              <option value="3">3 days</option>
+              <option value="4">4 days</option>
+              <option value="5">5 days</option>
+            </select>
+            <small id="days_requested_help" class="form-text text-muted">Select the number of days requested for the extension (1 to 5).</small>
           </div>
           <div class="form-group">
             <label for="reason">Reason for Extension</label>
@@ -93,6 +103,7 @@
   </div>
 </div>
 {% endfor %}
+
 {% endblock %}
 
 {% block scripts %}

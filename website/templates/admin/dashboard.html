@@ -9,7 +9,6 @@
   </button>
   <div class="collapse navbar-collapse" id="navbarNav">
     <ul class="navbar-nav ml-auto">
-     
       <li class="nav-item">
         <a class="nav-link" href="{{ url_for('main.admin_dashboard') }}">Dashboard</a>
       </li>
@@ -31,7 +30,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="container mt-5">
+<div class="container mt-5" style="max-width: 1500px;">
     <div class="card p-4" style="background-color: #1c1c1c; color: #ffffff;">
         <h1>Admin Dashboard</h1>
         <div class="row mb-3">
@@ -77,71 +76,64 @@
                 <table class="table table-striped table-dark">
                     <thead>
                         <tr>
-                            <th>Title</th>
-                            <th>Members Assigned</th>
+                            <th>Task ID</th>
+                            <th>Calendar Week</th>
+                            <th>Assigned Date</th>
                             <th>Assigned By</th>
+                            <th>Assigned To</th>
+                            <th>Title</th>
+                            <th>Category</th>
+                            <th>Description</th>
                             <th>Status</th>
+                            <th>Start Date</th>
+                            <th>End Date</th>
+                            <th>No. of Days Given</th>
+                            <th>Actual Completion Date</th>
+                            <th>Extra Time</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for task in tasks %}
-                        <tr>
-                            <td>{{ task.title }}</td>
-                            <td>
-                                {% for assignment in task.assignments %}
-                                    {{ assignment.assigned_to.username }}{% if not loop.last %}, {% endif %}
-                                {% endfor %}
-                            </td>
-                            <td>{{ task.assigned_by_user.username }}</td>
-                            <td>{{ task.status }}</td>
-                            <td>
-                                <button type="button" class="btn btn-sm btn-info" data-toggle="modal" data-target="#viewTaskModal{{ task.id }}">View</button>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Extension Requests Table -->
-        <div class="row mt-5">
-            <div class="col-md-12">
-                <h2>Extension Requests</h2>
-                <table class="table table-striped table-dark">
-                    <thead>
-                        <tr>
-                            <th>Task</th>
-                            <th>Requested By</th>
-                            <th>New End Date</th>
-                            <th>Reason</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for extension_request in extension_requests %}
-                        <tr>
-                            <td>{{ extension_request.task.title }}</td>
-                            <td>{{ extension_request.requesting_user.username }}</td>
-                            <td>{{ extension_request.new_end_date }}</td>
-                            <td>{{ extension_request.reason }}</td>
-                            <td>{{ extension_request.status }}</td>
-                            <td>
-                                {% if extension_request.status == 'Pending' %}
-                                <form action="{{ url_for('main.approve_extension', request_id=extension_request.id) }}" method="post" style="display: inline;">
-                                    <button type="submit" class="btn btn-sm btn-success">Approve</button>
-                                </form>
-                                <form action="{{ url_for('main.disapprove_extension', request_id=extension_request.id) }}" method="post" style="display: inline;">
-                                    <button type="submit" class="btn btn-sm btn-danger">Disapprove</button>
-                                </form>
-                                {% endif %}
-                                <form action="{{ url_for('main.delete_extension_request', request_id=extension_request.id) }}" method="post" style="display: inline;">
-                                    <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                                </form>
-                            </td>
-                        </tr>
+                            <tr>
+                                <td>{{ task.id }}</td>
+                                <td>{{ task.start_date.isocalendar()[1] }}</td>
+                                <td>{{ task.start_date }}</td>
+                                <td>{{ task.assigned_by_user.username }}</td>
+                                <td>
+                                    <a href="#" data-toggle="modal" data-target="#viewTaskModal{{ task.id }}">
+                                        {% for assignment in task.assignments %}
+                                            {{ assignment.assigned_to.username }}<br>
+                                        {% else %}
+                                            N/A
+                                        {% endfor %}
+                                    </a>
+                                </td>
+                                <td>{{ task.title }}</td>
+                                <td>{{ task.category }}</td>
+                                <td>{{ task.description }}</td>
+                                <td>{{ task.status }}</td>
+                                <td>{{ task.start_date }}</td>
+                                <td>{{ task.end_date }}</td>
+                                <td>{{ task.no_of_days_given }}</td>
+                                <td>{{ task.actual_completion_date or 'N/A' }}</td>
+                                <td>
+                                    {% if task.extra_time %}
+                                        {{ task.extra_time }}
+                                    {% else %}
+                                        0
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <form action="{{ url_for('main.delete_task', task_id=task.id) }}" method="post" style="display: inline;">
+                                        <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="15" class="text-center">No tasks available</td>
+                            </tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -171,6 +163,14 @@
                         <textarea class="form-control" id="description" name="description" rows="3" required></textarea>
                     </div>
                     <div class="form-group">
+                        <label for="category">Category</label>
+                        <select class="form-control" id="category" name="category" required>
+                            {% for category in categories %}
+                                <option value="{{ category }}">{{ category }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
                         <label for="start_date">Start Date</label>
                         <input type="date" class="form-control" id="start_date" name="start_date" required>
                     </div>
@@ -179,10 +179,10 @@
                         <input type="date" class="form-control" id="end_date" name="end_date" required>
                     </div>
                     <div class="form-group">
-                        <label for="assigned_to">Assign To</label>
+                        <label for="assigned_to">Assign to</label>
                         <select multiple class="form-control" id="assigned_to" name="assigned_to">
                             {% for employee in employees %}
-                            <option value="{{ employee.id }}">{{ employee.username }}</option>
+                                <option value="{{ employee.id }}">{{ employee.username }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -207,60 +207,30 @@
             </div>
             <div class="modal-body">
                 <p><strong>Title:</strong> {{ task.title }}</p>
-                <p><strong>Description:</strong> {{ task.description }}</p>
-                <p><strong>Start Date:</strong> {{ task.start_date }}</p>
-
-                <p><strong>End Date:</strong> {{ task.end_date }}</p>
-
-                <p><strong>Status:</strong> {{ task.status }}</p>
-
-                <p><strong>Assigned By:</strong> {{ task.assigned_by_user.username }}</p>
-
                 <p><strong>Assigned To:</strong> 
-
-                   {% for assignment in task.assignments %}
-
-                    <li>
-
-                        {{ assignment.assigned_to.username }} - 
-
-                        {% if assignment.completed %}
-
-                            Completed
-
-                            {% if assignment.completion_date and assignment.completion_date > task.end_date %}
-
-                                (Late Submission)
-
-                            {% endif %}
-
-                        {% else %}
-
-                            {% if task.end_date < current_date %}
-
-                                Overdue
-
+                    <ul>
+                        {% for assignment in task.assignments %}
+                        <li>
+                            {{ assignment.assigned_to.username }} - 
+                            {% if assignment.completed %}
+                                Completed
+                                {% if assignment.completion_date and assignment.completion_date > task.end_date %}
+                                    (Late Submission)
+                                {% endif %}
                             {% else %}
-
-                                Ongoing
-
+                                {% if task.end_date < current_date %}
+                                    Overdue
+                                {% else %}
+                                    Ongoing
+                                {% endif %}
                             {% endif %}
-
-                        {% endif %}
-
-                    </li>
-
-                    {% endfor %}
-
-                </ul>
-
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </p>
             </div>
         </div>
     </div>
 </div>
-
 {% endfor %}
 {% endblock %}
