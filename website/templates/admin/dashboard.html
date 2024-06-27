@@ -30,38 +30,82 @@
 {% endblock %}
 
 {% block content %}
-<div class="container mt-5" style="max-width: 1500px;">
+<div class="container mt-5" style="max-width: 15000px;">
     <div class="card p-4" style="background-color: #1c1c1c; color: #ffffff;">
         <h1>Admin Dashboard</h1>
         <div class="row mb-3">
             <div class="col-md-6">
-                <form method="get" action="{{ url_for('main.admin_dashboard') }}">
-                    <div class="form-group">
-                        <label for="employee_id">Filter by Employee</label>
-                        <select name="employee_id" id="employee_id" class="form-control" onchange="this.form.submit()">
-                            <option value="">All Employees</option>
-                            {% for employee in employees %}
-                            <option value="{{ employee.id }}" {% if request.args.get('employee_id')|int == employee.id %}selected{% endif %}>{{ employee.username }}</option>
-                            {% endfor %}
-                        </select>
+                <div class="dropdown">
+                    <button class="btn btn-secondary dropdown-toggle" type="button" id="filterDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        Filter 
+                    </button>
+                    <div class="dropdown-menu" aria-labelledby="filterDropdown" >
+                        <form method="get" action="{{ url_for('main.admin_dashboard') }}">
+                            <div class="dropdown-item">
+                                <label for="employee_id">Employee</label>
+                                <select name="employee_id" id="employee_id" class="form-control" onchange="this.form.submit()">
+                                    <option value="">All Employees</option>
+                                    {% for employee in employees %}
+                                    <option value="{{ employee.id }}" {% if request.args.get('employee_id')|int == employee.id %}selected{% endif %}>{{ employee.username }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="dropdown-item">
+                                <label for="assigned_by_id">Assigned By</label>
+                                <select name="assigned_by_id" id="assigned_by_id" class="form-control" onchange="this.form.submit()">
+                                    <option value="">All Admins</option>
+                                    {% for admin in admins %}
+                                    <option value="{{ admin.id }}" {% if request.args.get('assigned_by_id')|int == admin.id %}selected{% endif %}>{{ admin.username }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="dropdown-item">
+                                <label for="category">Category</label>
+                                <select name="category" id="category" class="form-control" onchange="this.form.submit()">
+                                    <option value="">All Categories</option>
+                                    {% for category in categories %}
+                                    <option value="{{ category }}" {% if request.args.get('category') == category %}selected{% endif %}>{{ category }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="dropdown-item">
+                                <label for="status">Status</label>
+                                <select name="status" id="status" class="form-control" onchange="this.form.submit()">
+                                    <option value="">All Statuses</option>
+                                    <option value="completed" {% if request.args.get('status') == 'completed' %}selected{% endif %}>Completed</option>
+                                    <option value="ongoing" {% if request.args.get('status') == 'ongoing' %}selected{% endif %}>Ongoing</option>
+                                    <option value="overdue" {% if request.args.get('status') == 'overdue' %}selected{% endif %}>Overdue</option>
+                                </select>
+                            </div>
+                        </form>
                     </div>
-                </form>
+                </div>
             </div>
             <div class="col-md-6">
-                <form method="get" action="{{ url_for('main.admin_dashboard') }}">
-                    <input type="hidden" name="employee_id" value="{{ request.args.get('employee_id') }}">
-                    <div class="form-group">
-                        <label for="sort_by">Sort by Date</label>
-                        <select name="sort_by" id="sort_by" class="form-control" onchange="this.form.submit()">
-                            <option value="start_date" {% if request.args.get('sort_by') == 'start_date' %}selected{% endif %}>Start Date</option>
-                            <option value="end_date" {% if request.args.get('sort_by') == 'end_date' %}selected{% endif %}>End Date</option>
-                        </select>
-                        <select name="sort_order" id="sort_order" class="form-control" onchange="this.form.submit()">
-                            <option value="asc" {% if request.args.get('sort_order') == 'asc' %}selected{% endif %}>Ascending</option>
-                            <option value="desc" {% if request.args.get('sort_order') == 'desc' %}selected{% endif %}>Descending</option>
-                        </select>
+                <div class="dropdown">
+                    <button class="btn btn-secondary dropdown-toggle" type="button" id="sortDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        Sort 
+                    </button>
+                    <div class="dropdown-menu" aria-labelledby="sortDropdown">
+                        <form method="get" action="{{ url_for('main.admin_dashboard') }}">
+                            <input type="hidden" name="employee_id" value="{{ request.args.get('employee_id') }}">
+                            <div class="dropdown-item">
+                                <label for="sort_by">Sort by</label>
+                                <select name="sort_by" id="sort_by" class="form-control" onchange="this.form.submit()">
+                                    <option value="start_date" {% if request.args.get('sort_by') == 'start_date' %}selected{% endif %}>Start Date</option>
+                                    <option value="end_date" {% if request.args.get('sort_by') == 'end_date' %}selected{% endif %}>End Date</option>
+                                </select>
+                            </div>
+                            <div class="dropdown-item">
+                                <label for="sort_order">Order</label>
+                                <select name="sort_order" id="sort_order" class="form-control" onchange="this.form.submit()">
+                                    <option value="asc" {% if request.args.get('sort_order') == 'asc' %}selected{% endif %}>Ascending</option>
+                                    <option value="desc" {% if request.args.get('sort_order') == 'desc' %}selected{% endif %}>Descending</option>
+                                </select>
+                            </div>
+                        </form>
                     </div>
-                </form>
+                </div>
             </div>
         </div>
 
@@ -145,7 +189,7 @@
 <!-- Create Task Modal -->
 <div class="modal fade" id="createTaskModal" tabindex="-1" role="dialog" aria-labelledby="createTaskModalLabel" aria-hidden="true">
     <div class="modal-dialog" role="document">
-        <div class="modal-content">
+        <div class="modal-content" style="background-color: #1c1c1c; color: #ffffff;">
             <div class="modal-header">
                 <h5 class="modal-title" id="createTaskModalLabel">Create Task</h5>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
@@ -153,7 +197,7 @@
                 </button>
             </div>
             <div class="modal-body">
-                <form action="{{ url_for('main.create_task') }}" method="post">
+                <form method="post" action="{{ url_for('main.create_task') }}">
                     <div class="form-group">
                         <label for="title">Title</label>
                         <input type="text" class="form-control" id="title" name="title" required>
@@ -163,10 +207,26 @@
                         <textarea class="form-control" id="description" name="description" rows="3" required></textarea>
                     </div>
                     <div class="form-group">
+                        <label for="assigned_by">Assigned By</label>
+                        <select class="form-control" id="assigned_by" name="assigned_by" required>
+                            {% for admin in admins %}
+                            <option value="{{ admin.id }}">{{ admin.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="assigned_to">Assigned To</label>
+                        <select class="form-control" id="assigned_to" name="assigned_to" multiple required>
+                            {% for employee in employees %}
+                            <option value="{{ employee.id }}">{{ employee.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
                         <label for="category">Category</label>
                         <select class="form-control" id="category" name="category" required>
                             {% for category in categories %}
-                                <option value="{{ category }}">{{ category }}</option>
+                            <option value="{{ category }}">{{ category }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -178,47 +238,39 @@
                         <label for="end_date">End Date</label>
                         <input type="date" class="form-control" id="end_date" name="end_date" required>
                     </div>
-                    <div class="form-group">
-                        <label for="assigned_to">Assign to</label>
-                        <select multiple class="form-control" id="assigned_to" name="assigned_to">
-                            {% for employee in employees %}
-                                <option value="{{ employee.id }}">{{ employee.username }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Create Task</button>
+                    <button type="submit" class="btn btn-primary">Create</button>
                 </form>
             </div>
         </div>
     </div>
 </div>
 
-<!-- View Task Modals -->
+<!-- View Task Modal -->
 {% for task in tasks %}
-<!-- Task Details Modal -->
-<div class="modal fade" id="viewTaskModal{{ task.id }}" tabindex="-1" role="dialog" aria-labelledby="taskDetailsModalLabel{{ task.id }}" aria-hidden="true">
+<div class="modal fade" id="viewTaskModal{{ task.id }}" tabindex="-1" role="dialog" aria-labelledby="viewTaskModalLabel{{ task.id }}" aria-hidden="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content" style="background-color: #1c1c1c; color: #ffffff;">
             <div class="modal-header">
-                <h5 class="modal-title" id="taskDetailsModalLabel{{ task.id }}">{{ task.title }}</h5>
+                <h5 class="modal-title" id="viewTaskModalLabel{{ task.id }}">{{ task.title }}</h5>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
             <div class="modal-body">
                 <p><strong>Title:</strong> {{ task.title }}</p>
-                <p><strong>Assigned To:</strong> 
+                <p><strong>Assigned By:</strong> {{ task.assigned_by_user.username }}</p>
+                <p><strong>Assigned To:</strong>
                     <ul>
                         {% for assignment in task.assignments %}
                         <li>
-                            {{ assignment.assigned_to.username }} - 
+                            {{ assignment.assigned_to.username }} -
                             {% if assignment.completed %}
                                 Completed
                                 {% if assignment.completion_date and assignment.completion_date > task.end_date %}
                                     (Late Submission)
                                 {% endif %}
                             {% else %}
-                                {% if task.end_date < current_date %}
+                                {% if task.get_final_end_date() < current_date %}
                                     Overdue
                                 {% else %}
                                     Ongoing
@@ -232,5 +284,58 @@
         </div>
     </div>
 </div>
+
+<!-- Modal Structure -->
+<div class="modal fade" id="extensionRequestModal" tabindex="-1" aria-labelledby="extensionRequestModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content" style="background-color: #1c1c1c; color: #ffffff;">
+            <div class="modal-header">
+                <h5 class="modal-title" id="extensionRequestModalLabel">Extension Requests</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p id="extensionRequestReason">Loading...</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endfor %}
+{% endblock %}
+
+
+{% block scripts %}
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        $('#extensionRequestModal').on('show.bs.modal', function (event) {
+            var button = $(event.relatedTarget); // Button that triggered the modal
+            var employeeId = button.data('employee-id');
+            var taskId = button.data('task-id');
+            
+            // Fetch extension request details
+            $.ajax({
+                url: "{{ url_for('main.get_extension_request') }}",
+                type: 'GET',
+                data: {
+                    employee_id: employeeId,
+                    task_id: taskId
+                },
+                success: function(response) {
+                    // Update modal content
+                    $('#extensionRequestReason').text(response.reason || 'No reason provided.');
+                },
+                error: function() {
+                    $('#extensionRequestReason').text('Failed to load extension request.');
+                }
+            });
+        });
+    });
+    </script>
 {% endblock %}

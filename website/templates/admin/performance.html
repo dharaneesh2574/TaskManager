@@ -9,7 +9,6 @@
   </button>
   <div class="collapse navbar-collapse" id="navbarNav">
     <ul class="navbar-nav ml-auto">
-      
       <li class="nav-item">
         <a class="nav-link" href="{{ url_for('main.admin_dashboard') }}">Dashboard</a>
       </li>
@@ -32,24 +31,41 @@
 
 {% block content %}
 <div class="container mt-5">
-    <h1 class="text-white">Performance Dashboard</h1>
-    <div class="row">
-        <div class="col-md-6">
-            <canvas id="taskChart" width="400" height="400"></canvas>
+    <div class="card p-4" style="background-color: #1c1c1c; color: #ffffff;">
+        <h1 class="text-white">Performance Dashboard</h1>
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <form method="get" action="{{ url_for('main.performance') }}">
+                    <div class="form-group">
+                        <label for="employee_id" class="text-white">Select Employee</label>
+                        <select name="employee_id" id="employee_id" class="form-control" onchange="this.form.submit()">
+                            <option value="">All Employees</option>
+                            {% for employee in employees %}
+                                <option value="{{ employee.id }}" {% if request.args.get('employee_id')|int == employee.id %}selected{% endif %}>{{ employee.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </form>
+            </div>
         </div>
-        <div class="col-md-6">
-            <canvas id="performanceGauge" width="400" height="400"></canvas>
+        <div class="row">
+            <div class="col-md-6">
+                <canvas id="taskChart" width="400" height="400"></canvas>
+            </div>
+            <div class="col-md-6">
+                <canvas id="performanceGauge" width="400" height="400"></canvas>
+            </div>
         </div>
-    </div>
-    <div class="mt-4 text-white">
-        <h3>Performance Metrics</h3>
-        <p>Total Tasks: {{ total_tasks }}</p>
-        <p>Completed Tasks: {{ completed_tasks }}</p>
-        <p>Ongoing Tasks: {{ ongoing_tasks }}</p>
-        <p>Overdue Tasks: {{ overdue_tasks }}</p>
-        <p>Late Submission Tasks: {{ late_submission_tasks }}</p>
-        <p>Success Rate: {{ success_rate }}%</p>
-    </div>
+        <div class="mt-4 text-white">
+            <h3>Performance Metrics</h3>
+            <p>Total Tasks: {{ total_tasks }}</p>
+            <p>Completed Tasks: {{ completed_tasks }}</p>
+            <p>Ongoing Tasks: {{ ongoing_tasks }}</p>
+            <p>Overdue Tasks: {{ overdue_tasks }}</p>
+            <p>Late Submission Tasks: {{ late_submission_tasks }}</p>
+            <p>Success Rate: {{ success_rate }}%</p>
+        </div>
+    </div>   
 </div>
 {% endblock %}
 
@@ -94,21 +110,16 @@ var performanceGauge = new Chart(ctx2, {
     options: {
         responsive: true,
         needle: {
-
             radiusPercentage: 2,
             widthPercentage: 3.2,
-
             lengthPercentage: 80,
-            // The color of the needle
             color: 'rgba(255, 0, 0, 1)'
         },
         valueLabel: {
-            // A function to return an `Object` as value label
             formatter: Math.round
         },
         plugins: {
             gauge: {
-                
                 valueLabel: {
                     formatter: function(value) {
                         return value + '%';

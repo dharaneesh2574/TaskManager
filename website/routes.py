@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, request, flash
+from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
 from flask_login import login_required, current_user
 from .models import Task, TaskAssignment, User, db, ExtensionRequest
 from werkzeug.security import generate_password_hash
@@ -18,9 +18,6 @@ main = Blueprint('main', __name__)
 def home():
     return render_template('home.html')
 
-
-
-
 @main.route('/admin/dashboard', methods=['GET', 'POST'])
 @login_required
 def admin_dashboard():
@@ -28,6 +25,9 @@ def admin_dashboard():
         return redirect(url_for('main.home'))
 
     employee_id = request.args.get('employee_id', type=int)
+    assigned_by_id = request.args.get('assigned_by_id', type=int)
+    category = request.args.get('category')
+    status = request.args.get('status')
     sort_by = request.args.get('sort_by', 'start_date')
     sort_order = request.args.get('sort_order', 'asc')
 
@@ -37,6 +37,20 @@ def admin_dashboard():
     if employee_id:
         tasks_query = tasks_query.join(TaskAssignment).filter(TaskAssignment.user_id == employee_id)
         extension_requests_query = extension_requests_query.filter_by(user_id=employee_id)
+        
+    if assigned_by_id:
+        tasks_query = tasks_query.filter_by(assigned_by=assigned_by_id)
+        
+    if category:
+        tasks_query = tasks_query.filter_by(category=category)
+        
+    if status:
+        if status == 'completed':
+            tasks_query = tasks_query.filter(Task.status == 'completed')
+        elif status == 'ongoing':
+            tasks_query = tasks_query.filter(Task.status == 'ongoing')
+        elif status == 'overdue':
+            tasks_query = tasks_query.filter(Task.status == 'overdue')
 
     if sort_by and sort_order:
         if sort_order == 'asc':
@@ -52,7 +66,7 @@ def admin_dashboard():
 
     tasks = tasks_query.all()
     employees = User.query.filter_by(role='employee').all()
-    #extension_requests = extension_requests_query.all()
+    admins = User.query.filter_by(role='admin').all()
     current_date = datetime.now().date()
 
     categories = [
@@ -61,7 +75,8 @@ def admin_dashboard():
         "Project Management", "HR Activities"
     ]
     update_task_status()
-    return render_template('admin/dashboard.html', tasks=tasks, employees=employees, current_date=current_date, categories=categories)
+    return render_template('admin/dashboard.html', tasks=tasks, employees=employees, admins=admins, current_date=current_date, categories=categories)
+
 
 
 @main.route('/admin/create_task', methods=['GET', 'POST'])
@@ -203,22 +218,33 @@ def performance():
     if current_user.role != 'admin':
         return redirect(url_for('main.home'))
 
-    total_tasks = Task.query.count()
-    completed_tasks = Task.query.filter(Task.assignments.any(TaskAssignment.completed == True)).filter_by(status='Completed').count()
-    ongoing_tasks = Task.query.filter_by(status='Ongoing').count()
-    overdue_tasks = Task.query.filter_by(status='Overdue').count()
-    late_submission_tasks = Task.query.filter_by(status='Late Submission').count()
+    employee_id = request.args.get('employee_id', type=int)
+
+    if employee_id:
+        total_tasks = Task.query.filter(Task.assignments.any(user_id=employee_id)).count()
+        completed_tasks = Task.query.filter(Task.assignments.any(user_id=employee_id, completed=True)).filter_by(status='Completed').count()
+        ongoing_tasks = Task.query.filter(Task.assignments.any(user_id=employee_id)).filter_by(status='Ongoing').count()
+        overdue_tasks = Task.query.filter(Task.assignments.any(user_id=employee_id)).filter_by(status='Overdue').count()
+        late_submission_tasks = Task.query.filter(Task.assignments.any(user_id=employee_id)).filter_by(status='Late Submission').count()
+    else:
+        total_tasks = Task.query.count()
+        completed_tasks = Task.query.filter(Task.assignments.any(TaskAssignment.completed == True)).filter_by(status='Completed').count()
+        ongoing_tasks = Task.query.filter_by(status='Ongoing').count()
+        overdue_tasks = Task.query.filter_by(status='Overdue').count()
+        late_submission_tasks = Task.query.filter_by(status='Late Submission').count()
 
     success_rate = (completed_tasks / total_tasks) * 100 if total_tasks > 0 else 0
 
+    employees = User.query.filter_by(role='employee').all()
+
     return render_template('admin/performance.html',
+                           employees=employees,
                            total_tasks=total_tasks,
                            completed_tasks=completed_tasks,
                            ongoing_tasks=ongoing_tasks,
                            overdue_tasks=overdue_tasks,
                            late_submission_tasks=late_submission_tasks,
                            success_rate=success_rate)
-
 
 @main.route('/admin/employees')
 @login_required
@@ -255,8 +281,8 @@ def employee_performance(employee_id):
     task_assignments = TaskAssignment.query.filter_by(user_id=employee_id).all()
     total_tasks = len(task_assignments)
     completed_tasks = sum(1 for assignment in task_assignments if assignment.completed)
-    ongoing_tasks = total_tasks - completed_tasks
-    overdue_tasks = sum(1 for assignment in task_assignments if assignment.task.end_date< datetime.now().date() and not assignment.completed)
+    ongoing_tasks = sum(1 for assignment in task_assignments if assignment.task.get_final_end_date()> datetime.now().date() and not assignment.completed)
+    overdue_tasks = sum(1 for assignment in task_assignments if assignment.task.get_final_end_date()< datetime.now().date() and not assignment.completed)
     late_submission_tasks = sum(1 for assignment in task_assignments if assignment.completed and assignment.completion_date and assignment.completion_date > assignment.task.end_date)
     success_rate = (completed_tasks / total_tasks) * 100 if total_tasks > 0 else 0
 
@@ -364,7 +390,7 @@ def approve_extension(request_id):
     extension_request.status = 'Approved'
     task = Task.query.get(extension_request.task_id)
     db.session.commit()
-    return redirect(url_for('auth.view_request'))
+    return redirect(url_for('auth.view_requests'))
 
 
 @main.route('/disapprove_extension/<int:request_id>', methods=['POST'])
@@ -375,7 +401,7 @@ def disapprove_extension(request_id):
     extension_request = ExtensionRequest.query.get_or_404(request_id)
     extension_request.status = 'Disapproved'
     db.session.commit()
-    return redirect(url_for('auth.view_request'))
+    return redirect(url_for('auth.view_requests'))
 
 @main.route('/admin/delete_extension_request/<int:request_id>', methods=['POST'])
 @login_required
@@ -388,7 +414,7 @@ def delete_extension_request(request_id):
     db.session.commit()
     
     flash('Extension request deleted successfully.')
-    return redirect(url_for('auth.view_request'))
+    return redirect(url_for('auth.view_requests'))
 
 @main.route('/delete_employee/<int:employee_id>', methods=['POST'])
 @login_required
@@ -421,3 +447,16 @@ def my_profile():
 
     form.email.data = current_user.email
     return render_template('employee/profile.html', form=form)
+
+@main.route('/get_extension_request', methods=['GET'])
+@login_required
+def get_extension_request():
+    employee_id = request.args.get('employee_id', type=int)
+    task_id = request.args.get('task_id', type=int)
+
+    extension_request = ExtensionRequest.query.filter_by(user_id=employee_id, task_id=task_id).first()
+
+    if extension_request:
+        return jsonify(reason=extension_request.reason)
+    else:
+        return jsonify(reason="No extension request found"), 404

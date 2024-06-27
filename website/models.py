@@ -1,5 +1,6 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
+from datetime import timedelta
 
 db = SQLAlchemy()
 
@@ -44,6 +45,14 @@ class Task(db.Model):
         if approved_requests:
             return sum(request.no_of_days for request in approved_requests)
         return 0
+    
+    def get_final_end_date(self):
+        """ Calculate the final end date considering any approved extension requests """
+        final_end_date = self.end_date
+        approved_requests = [request for request in self.extension_requests if request.status == 'Approved']
+        for extension in approved_requests:
+                final_end_date += timedelta(days=sum(request.no_of_days for request in approved_requests))
+        return final_end_date
 
 
 class TaskAssignment(db.Model):
