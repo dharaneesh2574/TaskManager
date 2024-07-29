@@ -3,7 +3,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from .models import User, Task, TaskAssignment, db, UserRequest, ExtensionRequest
 from .forms import LoginForm, SignUpForm
-from datetime import datetime, timedelta
+from datetime import datetime, date, timedelta
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy import func
@@ -29,7 +29,7 @@ def login():
 
 
 def update_task_status():
-    current_date = datetime.now().date()
+    current_date = datetime.now().date()  # Get the current date
 
     try:
         # Load all tasks with related extensions and assignments in a single query
@@ -51,14 +51,20 @@ def update_task_status():
             elif effective_end_date >= current_date and task.status == 'Overdue':
                 task.status = 'Ongoing'
 
-        # Update late submission tasks
+        # Update late submission tasks only if all assignments are completed
         overdue_tasks = Task.query.filter(Task.status == 'Overdue').all()
         for task in overdue_tasks:
             effective_end_date = task.end_date + timedelta(days=sum(ext.no_of_days for ext in task.extension_requests if ext.status == 'Approved'))
-            for assignment in task.assignments:
-                if assignment.completed and assignment.completion_date and assignment.completion_date > effective_end_date:
+            all_completed = all(assignment.completed for assignment in task.assignments)
+            if all_completed:
+                any_late_submission = any(
+                    assignment.completion_date and assignment.completion_date > effective_end_date
+                    for assignment in task.assignments
+                )
+                if any_late_submission:
                     task.status = 'Late Submission'
-                    break
+                else:
+                    task.status = 'Completed'
 
         # Commit all changes at once
         db.session.commit()
@@ -66,7 +72,7 @@ def update_task_status():
         db.session.rollback()
         flash('An error occurred while updating task statuses. Please try again.')
         print(f"Error: {e}")
-
+        
 @auth.route('/Sign_up', methods=['GET', 'POST'])
 def signup():
     form = SignUpForm()

@@ -2,11 +2,17 @@
 
 {% block content %}
 <div class="container mt-5">
-    <div class="card p-4" style="background-color: #1c1c1c; color: #ffffff;">
-            <h1 class="display-4">VISTA Task Manager</h1>
-            <p class="lead">Global Engineering and Technology Solutions Company</p>
-            <p class="lead">Now you can Track your Work Better than ever!!</p>
+    <div class="card p-4">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="display-4">VISTA Task Manager</h1>
+                <p class="lead">Global Engineering and Technology Solutions Company</p>
+                <p class="lead">Now you can Track your Work Better than ever!!</p>
+            </div>
+            <div class="col-md-4 text-center">
+                <img src="{{ url_for('static', filename='vista-logo-768x673.png') }}" alt="vista-logo" class="img-fluid" style="max-height: 200px;">
+            </div>
         </div>
-    </div>
+    </div> 
 </div>
 {% endblock %}

@@ -31,7 +31,7 @@
 
 {% block content %}
 <div class="container mt-5">
-    <div class="card p-4" style="background-color: #1c1c1c; color: #ffffff;">
+    <div class="card p-4">
         <h1 class="text-white">Performance Dashboard</h1>
         <div class="row mb-4">
             <div class="col-md-6">
@@ -49,29 +49,26 @@
             </div>
         </div>
         <div class="row">
-            <div class="col-md-6">
-                <canvas id="taskChart" width="400" height="400"></canvas>
-            </div>
-            <div class="col-md-6">
-                <canvas id="performanceGauge" width="400" height="400"></canvas>
-            </div>
-        </div>
-        <div class="mt-4 text-white">
-            <h3>Performance Metrics</h3>
-            <p>Total Tasks: {{ total_tasks }}</p>
-            <p>Completed Tasks: {{ completed_tasks }}</p>
-            <p>Ongoing Tasks: {{ ongoing_tasks }}</p>
-            <p>Overdue Tasks: {{ overdue_tasks }}</p>
-            <p>Late Submission Tasks: {{ late_submission_tasks }}</p>
-            <p>Success Rate: {{ success_rate }}%</p>
-        </div>
+          <div class="col-md-6">
+              <canvas id="taskChart" width="400" height="400"></canvas>
+          </div>
+          <div class="col-md-6 mt-4 text-white">
+              <h3>Performance Metrics</h3>
+              <p>Total Tasks: {{ total_tasks }}</p>
+              <p>Completed Tasks: {{ completed_tasks }}</p>
+              <p>Ongoing Tasks: {{ ongoing_tasks }}</p>
+              <p>Overdue Tasks: {{ overdue_tasks }}</p>
+              <p>Late Submission Tasks: {{ late_submission_tasks }}</p>
+              <p>Success Rate: {{ success_rate }}%</p>
+          </div>
+      </div>
+      
     </div>   
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-gauge"></script>
 <script>
 var ctx1 = document.getElementById('taskChart').getContext('2d');
 var taskChart = new Chart(ctx1, {
@@ -91,51 +88,6 @@ var taskChart = new Chart(ctx1, {
                 labels: {
                     color: 'white'
                 }
-            }
-        }
-    }
-});
-
-var ctx2 = document.getElementById('performanceGauge').getContext('2d');
-var performanceGauge = new Chart(ctx2, {
-    type: 'gauge',
-    data: {
-        datasets: [{
-            data: [{{ success_rate }}, 100],
-            value: {{ success_rate }},
-            backgroundColor: ['#007bff', '#e0e0e0'],
-            borderWidth: 0
-        }]
-    },
-    options: {
-        responsive: true,
-        needle: {
-            radiusPercentage: 2,
-            widthPercentage: 3.2,
-            lengthPercentage: 80,
-            color: 'rgba(255, 0, 0, 1)'
-        },
-        valueLabel: {
-            formatter: Math.round
-        },
-        plugins: {
-            gauge: {
-                valueLabel: {
-                    formatter: function(value) {
-                        return value + '%';
-                    },
-                    display: true,
-                    color: 'white',
-                    font: {
-                        size: 20,
-                        weight: 'bold'
-                    }
-                },
-                needle: {
-                    color: 'rgba(255, 0, 0, 1)'
-                },
-                borderWidth: 2,
-                borderColor: 'white'
             }
         }
     }

@@ -74,9 +74,11 @@ def admin_dashboard():
         "Operations", "HR and Admin", "IT and Infrastructure", "HR Support",
         "Project Management", "HR Activities"
     ]
-    update_task_status()
-    return render_template('admin/dashboard.html', tasks=tasks, employees=employees, admins=admins, current_date=current_date, categories=categories)
 
+    # Update task statuses
+    update_task_status()
+
+    return render_template('admin/dashboard.html', tasks=tasks, employees=employees, admins=admins, current_date=current_date, categories=categories)
 
 
 @main.route('/admin/create_task', methods=['GET', 'POST'])
@@ -167,30 +169,46 @@ def employee_dashboard():
 @main.route('/employee/complete_task/<int:task_id>', methods=['POST'])
 @login_required
 def complete_task(task_id):
+    # Check if the current user is an employee
     if current_user.role != 'employee':
         return redirect(url_for('main.home'))
 
+    # Fetch the task assignment for the current user and the given task ID
     task_assignment = TaskAssignment.query.filter_by(user_id=current_user.id, task_id=task_id).first_or_404()
     task_assignment.completed = True
-    task_assignment.completion_date = datetime.now()
+    task_assignment.completion_date = datetime.now()  # Mark the completion date as the current datetime
 
+    # Fetch the task details using the task ID
     task = Task.query.get_or_404(task_id)
     
-    # Check if all task assignments are completed
+    # Check if all task assignments for this task are completed
     all_completed = all(assignment.completed for assignment in task.assignments)
 
     if all_completed:
-        task.status = 'Completed'
-        if task.end_date < datetime.now().date():
-            task.status = 'Late Submission'
+        # Check if any task assignment's completion date exceeds the task's final end date
+        final_end_date = task.get_final_end_date()
+        any_late_submission = any(
+            assignment.completion_date and assignment.completion_date > final_end_date
+            for assignment in task.assignments
+        )
 
-        # Notify admin via email
+        # Update the task status based on the completion dates
+        if any_late_submission:
+            task.status = 'Late Submission'
+        else:
+            task.status = 'Completed'
+
+        # Notify the admin via email about the task completion status
         email_subject = "Task Completed" if task.status == 'Completed' else "Task Completed Late"
         email_body = f"Hello {task.assigned_by_user.username},\n\nThe task '{task.title}' has been marked as {task.status.lower()} by all assigned employees.\n\nBest regards,\nTask Management System"
         send_email(task.assigned_by_user.email, email_subject, email_body)
 
+    # Commit the changes to the database
     db.session.commit()
+
+    # Redirect the user to the employee dashboard
     return redirect(url_for('main.employee_dashboard'))
+
 
 
 @main.route('/admin/delete_task/<int:task_id>', methods=['POST'])
@@ -221,11 +239,12 @@ def performance():
     employee_id = request.args.get('employee_id', type=int)
 
     if employee_id:
-        total_tasks = Task.query.filter(Task.assignments.any(user_id=employee_id)).count()
-        completed_tasks = Task.query.filter(Task.assignments.any(user_id=employee_id, completed=True)).filter_by(status='Completed').count()
-        ongoing_tasks = Task.query.filter(Task.assignments.any(user_id=employee_id)).filter_by(status='Ongoing').count()
-        overdue_tasks = Task.query.filter(Task.assignments.any(user_id=employee_id)).filter_by(status='Overdue').count()
-        late_submission_tasks = Task.query.filter(Task.assignments.any(user_id=employee_id)).filter_by(status='Late Submission').count()
+        task_assignments = TaskAssignment.query.filter_by(user_id=employee_id).all()
+        total_tasks = len(task_assignments)
+        completed_tasks = sum(1 for assignment in task_assignments if assignment.completed and not (assignment.completion_date and assignment.completion_date > assignment.task.get_final_end_date()))       
+        ongoing_tasks = sum(1 for assignment in task_assignments if assignment.task.get_final_end_date()> datetime.now().date() and not assignment.completed)
+        overdue_tasks = sum(1 for assignment in task_assignments if assignment.task.get_final_end_date()< datetime.now().date() and not assignment.completed)
+        late_submission_tasks = sum(1 for assignment in task_assignments if assignment.completed and assignment.completion_date and assignment.completion_date > assignment.task.get_final_end_date())
     else:
         total_tasks = Task.query.count()
         completed_tasks = Task.query.filter(Task.assignments.any(TaskAssignment.completed == True)).filter_by(status='Completed').count()
@@ -253,8 +272,9 @@ def employees():
 
     employee_metrics = []
     for employee in employees:
-        total_tasks = len(employee.assigned_tasks)
-        completed_tasks = sum(1 for task in employee.assigned_tasks if task.task.status == 'Completed')
+        task_assignments = TaskAssignment.query.filter_by(user_id=employee.id).all()
+        total_tasks = len(task_assignments)
+        completed_tasks = sum(1 for assignment in task_assignments if assignment.completed and not (assignment.completion_date and assignment.completion_date > assignment.task.get_final_end_date()))       
         ongoing_tasks = sum(1 for task in employee.assigned_tasks if task.task.status == 'Ongoing')
         overdue_tasks = sum(1 for task in employee.assigned_tasks if task.task.status == 'Overdue')
         late_submission_tasks = sum(1 for task in employee.assigned_tasks if task.task.status == 'Late Submission')
@@ -280,10 +300,10 @@ def employee_performance(employee_id):
     
     task_assignments = TaskAssignment.query.filter_by(user_id=employee_id).all()
     total_tasks = len(task_assignments)
-    completed_tasks = sum(1 for assignment in task_assignments if assignment.completed)
+    completed_tasks = sum(1 for assignment in task_assignments if assignment.completed and not (assignment.completion_date and assignment.completion_date > assignment.task.get_final_end_date()))       
     ongoing_tasks = sum(1 for assignment in task_assignments if assignment.task.get_final_end_date()> datetime.now().date() and not assignment.completed)
     overdue_tasks = sum(1 for assignment in task_assignments if assignment.task.get_final_end_date()< datetime.now().date() and not assignment.completed)
-    late_submission_tasks = sum(1 for assignment in task_assignments if assignment.completed and assignment.completion_date and assignment.completion_date > assignment.task.end_date)
+    late_submission_tasks = sum(1 for assignment in task_assignments if assignment.completed and assignment.completion_date and assignment.completion_date > assignment.task.get_final_end_date())
     success_rate = (completed_tasks / total_tasks) * 100 if total_tasks > 0 else 0
 
     # Prepare data for the pie chart
@@ -322,8 +342,6 @@ def employee_performance(employee_id):
                            late_submission_tasks=late_submission_tasks,
                            success_rate=success_rate, pie_chart_filename=pie_chart_filename,
                            assigned_tasks=task_assignments)
-
-
 
 def generate_pie_chart(total_tasks, completed_tasks, ongoing_tasks, overdue_tasks, late_submission_tasks, employee_id):
     labels = ['Completed', 'Ongoing', 'Overdue', 'Late Submission']

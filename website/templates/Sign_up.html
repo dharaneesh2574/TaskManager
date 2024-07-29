@@ -3,7 +3,7 @@
 
 {% block content %}
 <div class="container d-flex justify-content-center align-items-center" style="height: 100vh;">
-    <div class="card p-4" style="background-color: #1c1c1c; color: #ffffff; width: 400px;">
+    <div class="card p-4" style="width: 400px;">
         <h1 class="text-center">Sign Up</h1>
         <form method="POST" action="{{ url_for('auth.signup') }}">
             {{ form.hidden_tag() }}

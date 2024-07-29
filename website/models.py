@@ -34,9 +34,8 @@ class Task(db.Model):
 
     @property
     def actual_completion_date(self):
-        completed_assignments = [assignment for assignment in self.assignments if assignment.completed]
-        if completed_assignments:
-            return max(assignment.completion_date for assignment in completed_assignments)
+        if all(assignment.completed for assignment in self.assignments):
+            return max(assignment.completion_date for assignment in self.assignments if assignment.completed)
         return None
 
     @property
